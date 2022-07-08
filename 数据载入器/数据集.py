@@ -1,6 +1,7 @@
 import os.path
 import sys
 
+import torch
 from sklearn.model_selection import train_test_split
 import cv2
 import numpy as np
@@ -20,14 +21,51 @@ class 视频数据集(Dataset):
 
         self.重置的高 = 128
         self.重置的宽 = 171
-        self.裁剪的尺寸 = 112
+        self.修剪的尺寸 = 112
 
         if not self.检查目录():
             raise RuntimeError('数据集没有找到或者损坏。你可以从官网上下载......')
 
-        if (self.检查预处理()) or 是否要预处理:
+        if (not self.检查预处理()) or 是否要预处理:
             print('预处理数据集{}，这个时间会很长，但它只需要执行一次。'.format(数据集))
             self.预处理()
+
+        self.文件名列表, 标签列表 = [], []
+        for 标签 in sorted(os.listdir(文件夹)):
+            for 文件名 in os.listdir(os.path.join(文件夹, 标签)):
+                self.文件名列表.append(os.path.join(文件夹, 标签, 文件名))
+                标签列表.append(标签)
+
+        assert len(标签列表) == len(self.文件名列表)
+        print('视频的数量{}：{:d}'.format(分隔符, len(self.文件名列表)))
+
+        self.标签到索引 = {标签: 索引 for 索引, 标签 in enumerate(sorted(set(标签列表)))}
+        self.标签数组 = np.array([self.标签到索引[标签] for 标签 in 标签列表], dtype=int)
+
+        if 数据集 == 'ucf101':
+            if not os.path.exists('../数据载入器/ucf_标签列表.txt'):
+                with open('../数据载入器/ucf_标签列表.txt', 'w') as f:
+                    for 标识, 标签 in enumerate(sorted(self.标签到索引)):
+                        f.write(str(标识 + 1) + ' ' + 标签 + '\n')
+        elif 数据集 == 'hmdb51':
+            if not os.path.exists('数据载入器/hmdb_标签列表.txt'):
+                with open('数据载入器/hmdb_标签列表.txt', 'w') as f:
+                    for 标识, 标签 in enumerate(sorted(self.标签到索引)):
+                        f.write(str(标识 + 1) + ' ' + 标签 + '\n')
+
+    def __len__(self):
+        return len(self.文件名列表)
+
+    def __getitem__(self, 索引):
+        缓存 = self.加载复数帧(self.文件名列表[索引])
+        缓存 = self.修剪(缓存, self.裁剪长度, self.修剪的尺寸)
+        标签数组 = np.array(self.标签数组[索引])
+
+        if self.分隔符 == '测试':
+            缓存 = self.随机翻动(缓存)
+        缓存 = self.标准化(缓存)
+        缓存 = self.转为张量(缓存)
+        return torch.from_numpy(缓存), torch.from_numpy(标签数组)
 
     def 检查目录(self):
         if not os.path.exists(self.根目录):
@@ -36,6 +74,7 @@ class 视频数据集(Dataset):
             return True
 
     def 检查预处理(self):
+        print(os.path.exists(self.输出目录))
         if not os.path.exists(self.输出目录):
             return False
         elif not os.path.exists(os.path.join(self.输出目录, '训练')):
@@ -142,8 +181,67 @@ class 视频数据集(Dataset):
 
         捕获.release()
 
+    def 随机翻动(self, 缓存):
+        if np.random.random() < 0.5:
+            for i, 帧 in enumerate(缓存):
+                帧 = cv2.flip(缓存[i], flipCode=1)
+                缓存[i] = cv2.flip(帧, flipCode=1)
+        return 缓存
+
+    def 标准化(self, 缓存):
+        for i, 帧 in enumerate(缓存):
+            帧 -= np.array([[[90.0, 98.0, 102.0]]])
+            缓存[i] = 帧
+        return 缓存
+
+    def 转为张量(self, 缓存):
+        return 缓存.transpose((3, 0, 1, 2))
+
+    def 加载复数帧(self, 文件目录):
+        帧列表 = sorted([os.path.join(文件目录, 图) for 图 in os.listdir(文件目录)])
+        帧数 = len(帧列表)
+        缓存 = np.empty((帧数, self.重置的高, self.重置的宽, 3), np.dtype('float32'))
+        for i, 帧名 in enumerate(帧列表):
+            图片 = Image.open(帧名)
+            图片 = cv2.cvtColor(np.asarray(图片), cv2.COLOR_RGB2BGR)
+            帧 = np.array(图片).astype(np.float64)
+            缓存[i] = 帧
+
+        return 缓存
+
+    def 修剪(self, 缓存, 裁剪长度, 修剪尺寸):
+        """
+        随机的选择开始位置
+        :param 缓存:
+        :param 裁剪长度: 相当于帧数
+        :param 修剪尺寸: 图片的尺寸
+        :return:
+        """
+        时间索引 = np.random.randint(缓存.shape[0] - 裁剪长度)
+
+        高度索引 = np.random.randint(缓存.shape[1] - 修剪尺寸)
+        宽度索引 = np.random.randint(缓存.shape[2] - 修剪尺寸)
+
+        缓存 = 缓存[
+             时间索引:时间索引 + 裁剪长度,
+             高度索引:高度索引 + 修剪尺寸,
+             宽度索引:宽度索引 + 修剪尺寸,
+             :
+             ]
+        return 缓存
+
 
 if __name__ == '__main__':
+    from torch.utils.data import DataLoader
+
     print('开始')
     # 数据已经处理过一次了
-    训练数据 = 视频数据集(数据集='ucf101', 分隔符='测试', 裁剪长度=8, 是否要预处理=True)
+    训练用数据 = 视频数据集(数据集='ucf101', 分隔符='测试', 裁剪长度=8, 是否要预处理=False)
+    训练用加载器 = DataLoader(训练用数据, batch_size=100, shuffle=True, num_workers=4)
+
+    for i, 样例 in enumerate(训练用加载器):
+        输入列表 = 样例[0]
+        标签列表 = 样例[1]
+        print(输入列表.size())
+        print(标签列表)
+        break

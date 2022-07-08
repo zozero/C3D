@@ -3,6 +3,8 @@ import os.path
 
 import torch
 
+from 网络 import 三维卷积模型类
+
 if __name__ == '__main__':
     设备 = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("%s设备将被使用" % 设备)
@@ -14,13 +16,13 @@ if __name__ == '__main__':
     快照 = 25
     学习率 = 1e-5
 
-    数据集 = 'ufc101'
+    数据集 = 'ucf101'
     if 数据集 == 'hmdb51':
         分类数 = 51
-    elif 数据集 == 'ufc101':
+    elif 数据集 == 'ucf101':
         分类数 = 101
     else:
-        print("我们的数据集只有”hmdb51“和”ufc101“")
+        print("我们的数据集只有”hmdb51“和”ucf101“")
         raise NotImplementedError
 
     保存路径根 = os.path.join(os.path.dirname(os.path.abspath(__file__)))
@@ -39,5 +41,4 @@ if __name__ == '__main__':
 
 
     def 训练模型(数据集=数据集, 保存路径=保存路径, 分类数=分类数, 学习率=学习率, 轮回数=轮回数, 保存轮回间隔=快照, 是否测试=是否测试, 测试间隔=测试间隔):
-        pass
-        # 模型=
+        模型 = 三维卷积模型类.三维卷积(分类数=分类数, 是否预训练=False)
