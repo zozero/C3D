@@ -2,6 +2,7 @@ import glob
 import os.path
 
 import torch
+from torch import nn, optim
 
 from 网络 import 三维卷积模型类
 
@@ -41,4 +42,11 @@ if __name__ == '__main__':
 
 
     def 训练模型(数据集=数据集, 保存路径=保存路径, 分类数=分类数, 学习率=学习率, 轮回数=轮回数, 保存轮回间隔=快照, 是否测试=是否测试, 测试间隔=测试间隔):
-        模型 = 三维卷积模型类.三维卷积(分类数=分类数, 是否预训练=False)
+        模型 = 三维卷积模型类.三维卷积(分类数=分类数, 是否已训练=False)
+        训练用参数=[
+            {'params':三维卷积模型类.获得1x学习率参数(模型),'lr':学习率},
+            {'params':三维卷积模型类.获得10x学习率参数(模型),'lr':学习率}
+        ]
+        准绳=nn.CrossEntropyLoss()
+        优化器=optim.SGD(训练用参数,lr=学习率,momentum=0.9,weight_decay=5e-4)
+        调度器=
