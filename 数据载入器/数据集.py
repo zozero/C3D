@@ -37,14 +37,14 @@ class 视频数据集(Dataset):
                 标签列表.append(标签)
 
         assert len(标签列表) == len(self.文件名列表)
-        print('视频的数量{}：{:d}'.format(分隔符, len(self.文件名列表)))
+        print('视频的数量 {}：{:d}'.format(分隔符, len(self.文件名列表)))
 
         self.标签到索引 = {标签: 索引 for 索引, 标签 in enumerate(sorted(set(标签列表)))}
         self.标签数组 = np.array([self.标签到索引[标签] for 标签 in 标签列表], dtype=int)
 
         if 数据集 == 'ucf101':
-            if not os.path.exists('../数据载入器/ucf_标签列表.txt'):
-                with open('../数据载入器/ucf_标签列表.txt', 'w') as f:
+            if not os.path.exists('数据载入器/ucf_标签列表.txt'):
+                with open('数据载入器/ucf_标签列表.txt', 'w') as f:
                     for 标识, 标签 in enumerate(sorted(self.标签到索引)):
                         f.write(str(标识 + 1) + ' ' + 标签 + '\n')
         elif 数据集 == 'hmdb51':
